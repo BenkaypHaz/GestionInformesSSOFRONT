@@ -1,5 +1,6 @@
 import axios from '@/axiosInstance';
 import axiosInstanceSAC  from '@/axiosInstanceSAC';
+import { InformeCalorService } from '@/services/InformeCalor'; 
 
 export const empresasService = {
 

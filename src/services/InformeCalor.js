@@ -11,6 +11,19 @@ export const InformeCalorService = {
     }
   },
   
+async subirImagen(formData) {
+      console.error('Si intente subir la imagen');
+
+  try {
+    const response = await axios.post('/Imagenes/Upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Error al subir imagen:', error)
+    throw new Error(error.response?.data?.message || 'Error al subir imagen')
+  }
+},
 
   async subirArchivoExcel(formData) {
     try {
@@ -72,5 +85,14 @@ async getRopaUtilizada() {
     throw error;
   }
 },
+async obtenerTasasMetabolicas() {
+  try {
+    const response = await axios.get('/TasaMetabolica');
+    return response.data; // ← porque estás usando ApiResponse
+  } catch (error) {
+    console.error('Error al obtener tasas metabólicas:', error);
+    throw new Error(error.response?.data?.message || 'Error al obtener tasas metabólicas');
+  }
+}
 
 };

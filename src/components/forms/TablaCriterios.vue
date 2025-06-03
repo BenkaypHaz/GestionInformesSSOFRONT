@@ -1,17 +1,43 @@
 <script>
 import TimeSlider from './TimeSlider.vue';
+import { InformeCalorService } from '@/services/InformeCalor';
 
 export default {
   name: "CustomTable",
   components: {
     TimeSlider,
   },
+  emits: ['tasa-cambiada'],
   data() {
     return {
       pesoPromedio: "", // Para almacenar el peso promedio ingresado
       adaptacionSeleccionada: "", // Para almacenar la selección del dropdown
+      actividadSeleccionadaId: "",
+      tasasMetabolicas: [], 
     };
   },
+  computed: {
+  actividadSeleccionada() {
+    return this.tasasMetabolicas.find(t => t.id === this.actividadSeleccionadaId);
+  }
+},watch: {
+  actividadSeleccionadaId() {
+    const seleccionada = this.actividadSeleccionada
+    if (seleccionada) {
+      
+      this.$emit('tasa-cambiada', seleccionada.tasaMetabolicaMax)
+    }
+  }
+},
+async mounted() {
+  try {
+    const response = await InformeCalorService.obtenerTasasMetabolicas();
+    this.tasasMetabolicas = response.data; 
+    console.log("📦 Tasas metabólicas cargadas (fix):", this.tasasMetabolicas);
+  } catch (error) {
+    console.error("No se pudo cargar tasas metabólicas", error);
+  }
+},
   methods: {
     validateWeight() {
       // Validar que el input solo acepte números con hasta dos decimales
@@ -22,6 +48,7 @@ export default {
     },
   },
 };
+
 </script>
 
 <template>
@@ -44,51 +71,42 @@ export default {
           <td>
             Variará de acuerdo al tipo de trabajo enlistado en una tabla de referencia.
           </td>
-        </tr>
+        </tr>      
+            
         <tr>
-          <td>Peso Promedio de los Trabajadores</td>
-          <td>
-            <!-- Input para peso promedio -->
-            <div class="input-container">
-              <span>Lbs.</span>
-              <input
-                type="text"
-                v-model="pesoPromedio"
-                @input="validateWeight"
-                placeholder="0.00"
-              />
-            </div>
-          </td>
-          <td>
-            Media del peso de los trabajadores en el área realizando las mismas tareas.
-          </td>
-        </tr>
-        <tr>
-          <td>Tasa Metabólica</td>
-          <td></td>
-          <td>
-            Breve descripción de la(s) tarea(s) realizada(s).
-          </td>
-        </tr>
+  <td>Tasa Metabólica</td>
+  <td>
+    <select v-model="actividadSeleccionadaId" class="dropdown">
+<option
+  v-for="tasa in tasasMetabolicas"
+  :key="tasa.id"
+  :value="tasa.id"
+>
+  {{ tasa.actividad }} - Rango: {{ tasa.tasaMetabolicaMin }}–{{ tasa.tasaMetabolicaMax || '+' }} W/m²
+</option>
+
+</select>
+
+
+
+  </td>
+  <td>
+    Breve descripción de la(s) tarea(s) realizada(s).
+  </td>
+</tr>
+
         <tr>
           <td>Adaptación fisiológica al calor</td>
           <td>
-            <!-- Dropdown para selección de aclimatación -->
+            <!-- Dropdown para selección de aclimatación -->    
             <select v-model="adaptacionSeleccionada" class="dropdown">
               <option value="Aclimatado">Aclimatado</option>
-              <option value="No Aclimatado">No Aclimatado</option>
+              <option value="No Aclimatado">No Aclimatado</option> 
             </select>
           </td>
           <td>
-            Dependerá de la selección de un parámetro en una tabla predeterminada.
-          </td>
-        </tr>
-        <tr>
-          <td>Ajuste por ropa</td>
-          <td></td>
-          <td>
-            Dependerá de la selección de un parámetro en una tabla predeterminada.
-          </td>
+            Dependerá de la selección de un parámetro en una tabla   da.
+          </td>  
         </tr>
       </tbody>
     </table>
@@ -171,5 +189,6 @@ export default {
   border-radius: 4px;
   background-color: #181c2c;
   font-size: 14px;
+  color: white;
 }
 </style>
