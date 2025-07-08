@@ -14,20 +14,18 @@ import LayoutAuthenticated from '../components/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '../components/layouts/SectionTitleLineWithButton.vue'
 import InputControl from '../components/forms/InputControl.vue'
 import ButtonAdd from '../components/forms/ButtonAdd.vue'
-import ButtonDelete from '../components/forms/ButtonDelete.vue'
 import CheckButton from '../components/forms/CheckButton.vue'
-import TimeSlider from '@/components/forms/TimeSlider.vue'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import TablaEquipos from '@/components/forms/TablaEquipos.vue'
 import TablaCriterios from '@/components/forms/TablaCriterios.vue'
+import TablaLimites from '@/components/forms/TablaLimites.vue'
 import dayjs from 'dayjs'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.min.css'
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview'
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'
-import * as pdfjsLib from 'pdfjs-dist/webpack'
 
 const FilePond = vueFilePond(FilePondPluginImagePreview, FilePondPluginFileValidateType)
 const isLoading = ref(false); // Nueva variable para el estado de carga
@@ -45,6 +43,8 @@ const form = reactive({
   imagenRectal: [],
   imagenPiel: [],
   imagenAgua: [],
+  fotosAreas: [], 
+  graficosHumedad: [],
   tituloGraficoAgua: 'Proyección de pérdida de agua',
   tituloGraficoPiel: 'Proyección de temperatura de piel',
   tituloGraficoRectal: 'Proyección de temperatura rectal',
@@ -64,10 +64,11 @@ const time = ref(null)
 const mostrarSegundaSeccion = ref(false) // false muestra la primera sección, true muestra la segunda
 const ropaOpciones = ref([])
 const tasaDesdeCriterios = ref(0)
-
-const toggleSeccion = () => {
-  mostrarSegundaSeccion.value = !mostrarSegundaSeccion.value
-}
+const pondRectal = ref(null)
+const pondPiel = ref(null)
+const pondAgua = ref(null)
+const pondExcel = ref(null)
+const pondGraficosHumedad = ref(null)
 
 const fetchRopaUtilizada = async () => {
   try {
@@ -91,15 +92,14 @@ const submitForm = async () => {
     if (!fechainicio.value) errores.push('Fecha de inicio no seleccionada.')
     if (!fechafinal.value) errores.push('Fecha de fin no seleccionada.')
     if (form.equiposSeleccionados.length === 0) errores.push('No se han seleccionado equipos.')
-    if (!form.archivos || form.archivos.length === 0)
-      errores.push('No se ha subido ningún archivo.')
+    if (!form.archivos || form.archivos.length === 0) errores.push('No se ha subido ningún archivo.')
     if (!form.pesoestimado) errores.push('El peso promedio no puede ser cero.')
-  if (form.imagenRectal.length === 0) errores.push('No se ha subido la imagen para Proyección de temperatura rectal.')
+    if (form.imagenRectal.length === 0) errores.push('No se ha subido la imagen para Proyección de temperatura rectal.')
     if (form.imagenPiel.length === 0) errores.push('No se ha subido la imagen para Proyección de temperatura de piel.')
     if (form.imagenAgua.length === 0) errores.push('No se ha subido la imagen para Proyección de pérdida de agua.')
-     if (!form.tituloGraficoRectal.trim()) errores.push('El título para Proyección de temperatura rectal no puede estar vacío.');
-    if (!form.tituloGraficoPiel.trim()) errores.push('El título para Proyección de temperatura de piel no puede estar vacío.');
-    if (!form.tituloGraficoAgua.trim()) errores.push('El título para Proyección de pérdida de agua no puede estar vacío.');
+    if (!form.tituloGraficoRectal.trim()) errores.push('El título para Proyección de temperatura rectal no puede estar vacío.')
+    if (!form.tituloGraficoPiel.trim()) errores.push('El título para Proyección de temperatura de piel no puede estar vacío.')
+    if (!form.tituloGraficoAgua.trim()) errores.push('El título para Proyección de pérdida de agua no puede estar vacío.')
     if (fechainicio.value && fechafinal.value && dayjs(fechafinal.value).isBefore(dayjs(fechainicio.value))) {
       errores.push('La fecha de fin no puede ser anterior a la fecha de inicio.')
     }
@@ -112,7 +112,8 @@ const submitForm = async () => {
       })
       return
     }
-    isLoading.value = true;
+    
+    isLoading.value = true
 
     // Crear el payload estructurado correctamente
     const payload = {
@@ -134,7 +135,7 @@ const submitForm = async () => {
         TemperaturaMaxima: dia.temperaturaMaxima || '', // Asegura string
         TemperaturaMinima: dia.temperaturaMinima || '' // Asegura string
       })),
-        titulosGraficos: [
+      titulosGraficos: [
         {
           id: 0,
           idInforme: 0,
@@ -162,40 +163,67 @@ const submitForm = async () => {
     // Obtener el informeId del response
     const informeId = response.data
 
+// Guardar los valores proyectados fisiológicos
+      await InformeCalorService.guardarValoresProyectados({
+        idInforme: informeId,
+        TemperaturaRectalFinal: limitesProyectados.value.TemperaturaRectalFinal,
+        ExcesoTempCorporal38C: limitesProyectados.value.ExcesoTempCorporal38C === 'Excedido',
+        ExcesoDeshidratacion2Porciento: limitesProyectados.value.ExcesoDeshidratacion2Porciento === 'Excedido',
+        TasaMediaSudoracion: limitesProyectados.value.TasaMediaSudoracion,
+        PerdidaTotalAgua: limitesProyectados.value.PerdidaTotalAgua
+      })
+
+
     // Subir el archivo Excel
     const formData = new FormData()
     formData.append('file', form.archivos[0]) // Archivo
     formData.append('informeId', informeId) // informeId separado
 
-    const response2 = await InformeCalorService.subirArchivoExcel(formData)
+    const response2 = await InformeCalorService .subirArchivoExcel(formData)
 
     // Subir imágenes si existen
-const imagenes = [
-  { archivo: form.imagenRectal[0], tipo: 'Rectal' },
-  { archivo: form.imagenPiel[0], tipo: 'Piel' },
-  { archivo: form.imagenAgua[0], tipo: 'Agua' }
-]
+    const imagenes = [
+      { archivo: form.imagenRectal[0], tipo: 'Rectal' },
+      { archivo: form.imagenPiel[0], tipo: 'Piel' },
+      { archivo: form.imagenAgua[0], tipo: 'Agua' }
+    ]
 
-console.log('Estado de las imágenes antes de subir:', {
-  rectal: form.imagenRectal,
-  piel: form.imagenPiel,
-  agua: form.imagenAgua
-})
-    for (const img of imagenes) {
-  console.log('Procesando imagen:', img)
-      if (img.archivo) {
-            console.log('Subiendo archivo válido:', img.archivo.name, 'Tipo:', img.tipo)
-
+    // Para las fotos de áreas, que pueden ser múltiples
+    if (form.fotosAreas.length > 0) {
+      for (const archivo of form.fotosAreas) {
         const imagenData = new FormData()
-        imagenData.append('file', img.archivo)
+        imagenData.append('Files', archivo)
         imagenData.append('informeId', informeId)
-        imagenData.append('tipo', img.tipo) // Por ejemplo para saber qué imagen es
+        imagenData.append('tipo', 'FotosAreas')
 
-        // Simulación de llamada a backend (haz esto cuando tengas el endpoint real)
+        await InformeCalorService.subirImagen(imagenData)
+      }
+    }       
+
+    if (form.graficosHumedad.length > 0) {
+      for (const archivo of form.graficosHumedad) {
+        const imagenData = new FormData()
+        imagenData.append('Files', archivo)
+        imagenData.append('informeId', informeId)
+        imagenData.append('tipo', 'GraficosHumedad')
+
         await InformeCalorService.subirImagen(imagenData)
       }
     }
 
+    // Subir las imágenes rectal, piel y agua
+    for (const img of imagenes) { 
+      if (img.archivo) {
+        const imagenData = new FormData()
+        imagenData.append('Files', img.archivo)
+        imagenData.append('informeId', informeId)
+        imagenData.append('tipo', img.tipo)
+
+        await InformeCalorService.subirImagen(imagenData)
+      }
+    }
+
+    // Descargar el informe en PDF
     const pdfBlob = await InformeCalorService.descargarInformePDF(informeId)
     const url = window.URL.createObjectURL(pdfBlob)
     const a = document.createElement('a')
@@ -219,33 +247,15 @@ console.log('Estado de las imágenes antes de subir:', {
       title: 'Error',
       text: error.response?.data?.message || error.message || 'No se pudo enviar la información.',
       background: '#181c2c'
-    });
-  }finally {
-    // 6. Desactiva el loader en el bloque finally
-    isLoading.value = false;
-  }
-}
-
-const mostrarInforme = async () => {
-  try {
-    console.log('Iniciando mostrarInforme')
-    console.log('ID del Informe:', form.idInforme)
-
-    const pdfBlob = await InformeCalorService.descargarInformePDF(7)
-    pdfUrl.value = URL.createObjectURL(pdfBlob)
-
-    // Renderiza el PDF en el contenedor
-    await loadPdf(pdfUrl.value)
-  } catch (error) {
-    console.error('Error al mostrar el informe:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Error',
-      text: error.response?.data?.message || 'No se pudo mostrar el informe.',
-      background: '#181c2c'
     })
+  } finally {
+    // Desactiva el loader en el bloque finally
+    isLoading.value = false
   }
 }
+
+
+
 
 const onFileAdded = (error, file) => {
   console.log('Evento onFileAdded disparado:', { error, file })
@@ -274,12 +284,54 @@ watch(time, (newTime) => {
 
 const clearForm = () => {
   form.idEmpresa = 1
+  form.activo = true
+  form.tasaestimada = 0.0
+  form.pesoestimado = 0.0
+  form.idRopaUtilizada = 1
   form.archivos = []
   form.equiposSeleccionados = []
+  form.idTecnico = null
+  form.diasEvaluacion = []
+  form.imagenRectal = []
+  form.imagenPiel = []
+  form.imagenAgua = []
+  form.tituloGraficoAgua = 'Proyección de pérdida de agua'
+  form.tituloGraficoPiel = 'Proyección de temperatura de piel'
+  form.tituloGraficoRectal = 'Proyección de temperatura rectal'
+  form.idInforme = null
+
+  // --- 2. Resetear todas las variables 'ref' de control de estado ---
+  listaNoAfiliadas.value = false
   fechainicio.value = null
   fechafinal.value = null
   daysBetween.value = []
+  equipoSeleccionado.value = null
+  time.value = null
+  mostrarSegundaSeccion.value = false
+  tasaDesdeCriterios.value = 0
+  pdfUrl.value = ''
+
+  // --- 3. Limpiar la UI de los 4 componentes FilePond ---
+  if (pondRectal.value) {
+    pondRectal.value.removeFiles()
+  }
+  if (pondPiel.value) {
+    pondPiel.value.removeFiles()
+  }
+  if (pondAgua.value) {
+    pondAgua.value.removeFiles()
+  }
+  if (pondExcel.value) {
+    pondExcel.value.removeFiles()
+  }
+
+  // --- 4. (Opcional pero recomendado) Limpiar el contenedor del visor de PDF ---
+  const pdfContainer = document.getElementById('pdfContainer')
+  if (pdfContainer) {
+    pdfContainer.innerHTML = ''
+  }
 }
+
 
 const generateDynamicDays = () => {
   if (fechainicio.value && fechafinal.value) {
@@ -397,63 +449,24 @@ const fetchEmpresasNoAfiliadas = async () => {
 }
 const pdfUrl = ref('')
 
-async function generateReport() {
-  try {
-    const pdfBlob = await InformeCalorService.descargarInformePDF(form.idInforme)
-    if (pdfBlob instanceof Blob) {
-      pdfUrl.value = URL.createObjectURL(pdfBlob)
-      await loadPdf(pdfUrl.value)
-    } else {
-      console.error('Fetched data is not a Blob:', pdfBlob)
-    }
-  } catch (error) {
-    console.error('Error during report fetching or Blob creation:', error)
-    Swal.fire({
-      title: "<h3 style='color:white'>Error</h3>",
-      html: "<h1 style='color:white'>" + error.message + '</h1>',
-      icon: 'error',
-      background: '#181c2c'
-    })
-  }
-}
 
-async function loadPdf(url) {
-  try {
-    const pdf = await pdfjsLib.getDocument(url).promise
-    const container = document.getElementById('pdfContainer')
-    container.innerHTML = '' // Clear previous PDF content
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber)
-      const scale = 1.5
-      const viewport = page.getViewport({ scale })
-
-      const canvas = document.createElement('canvas')
-      const context = canvas.getContext('2d')
-      canvas.height = viewport.height
-      canvas.width = viewport.width
-
-      canvas.style.display = 'block'
-      canvas.style.marginBottom = '20px'
-
-      container.appendChild(canvas)
-
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport
-      }
-
-      await page.render(renderContext).promise
-    }
-  } catch (error) {
-    console.error('Error during PDF loading or rendering:', error)
-  }
-}
 
 const onFilePondAdd = (tipo, error, fileItem) => {
   console.log('Evento onFilePondAdd disparado:', { tipo, error, fileItem })
   
   if (!error && fileItem?.file) {
+
+    if (tipo === 'FotosAreas') {
+      form.fotosAreas.push(fileItem.file)  // Agrega el archivo al array de Fotos de Áreas
+      console.log('Foto de área agregada:', form.fotosAreas)
+    }
+
+    // AGREGAR ESTE BLOQUE PARA GRAFICOS HUMEDAD
+    if (tipo === 'GraficosHumedad') {
+      form.graficosHumedad.push(fileItem.file)  // Agrega el archivo al array de Gráficos de Humedad
+      console.log('Gráfico de humedad agregado:', form.graficosHumedad)
+    }
+
     // Accede al archivo real dentro de `fileItem.file`
     if (tipo === 'Rectal') {
       form.imagenRectal = [fileItem.file]
@@ -470,6 +483,38 @@ const onFilePondAdd = (tipo, error, fileItem) => {
   } else {
     console.error('Error al agregar imagen o archivo no válido:', error)
   }
+}
+
+const onFilePondRemove = (tipo, error, fileItem) => {
+  if (!error && fileItem?.file) {
+    if (tipo === 'FotosAreas') {
+      const index = form.fotosAreas.findIndex(f => f === fileItem.file)
+      if (index > -1) {
+        form.fotosAreas.splice(index, 1)
+        console.log('Foto de área eliminada:', form.fotosAreas)
+      }
+    }
+    
+    if (tipo === 'GraficosHumedad') {
+      const index = form.graficosHumedad.findIndex(f => f === fileItem.file)
+      if (index > -1) {
+        form.graficosHumedad.splice(index, 1)
+        console.log('Gráfico de humedad eliminado:', form.graficosHumedad)
+      }
+    }
+  }
+}
+
+const limitesProyectados = ref({
+  TemperaturaRectalFinal: 0,
+  ExcesoTempCorporal38C: 'No excedido',
+  ExcesoDeshidratacion2Porciento: 'No excedido',
+  TasaMediaSudoracion: 0,
+  PerdidaTotalAgua: 0
+})
+
+const actualizarLimites = (nuevosValores) => {
+  limitesProyectados.value = { ...nuevosValores }
 }
 
 onMounted(() => {
@@ -534,14 +579,14 @@ onMounted(() => {
             <div>
               <FormControl
                 v-if="!listaNoAfiliadas"
-                :options="empresasaAfiliadasOpciones"
                 v-model="form.idEmpresa"
+                :options="empresasaAfiliadasOpciones"
                 label="Empresa Afiliada"
               />
               <FormControl
                 v-else
-                :options="empresasOpciones"
                 v-model="form.idEmpresa"
+                :options="empresasOpciones"
                 label="Empresa No Afiliada"
               />
             </div>
@@ -571,61 +616,61 @@ onMounted(() => {
 
           <FormField label="Peso Promedio">
             <InputControl
+              id="Peso"
+              v-model="form.pesoestimado"
               type="cantidad"
               name="Peso"
-              id="Peso"
               label="Peso(Libras)"
-              v-model="form.pesoestimado"
             />
           </FormField>
           <FormField label="Ropa Utilizada">
             <FormControl
-              :options="ropaOpciones"
               v-model="form.idRopaUtilizada"
+              :options="ropaOpciones"
               label="Ropa Usada"
             />
           </FormField>
 
           <FormField label="Nombre del técnico y equipo utilizado">
-            <FormControl :options="usuariosOpciones" v-model="form.idTecnico" label="Usuarios" />
+            <FormControl v-model="form.idTecnico" :options="usuariosOpciones" label="Usuarios" />
             <FormControl
-              :options="[{ id: null, label: 'Seleccione una opción' }, ...equiposOpciones]"
               v-model="equipoSeleccionado"
+              :options="[{ id: null, label: 'Seleccione una opción' }, ...equiposOpciones]"
               label="Equipos"
             />
           </FormField>
           <CardBox class="mb-6" has-table>
-            <TablaEquipos :equiposSeleccionados="form.equiposSeleccionados" />
+            <TablaEquipos :equipos-seleccionados="form.equiposSeleccionados" />
           </CardBox>
           <div v-for="(day, index) in form.diasEvaluacion" :key="index">
             <FormField :label="day.dia">
               <InputControl
+                id="humedad_relativa"
+                v-model="day.humedadRelativa"
                 type="input"
                 :name="`humedad_relativa_${index}`"
-                id="humedad_relativa"
                 label="Humedad Relativa"
-                v-model="day.humedadRelativa"
               />
               <InputControl
+                id="parcialmente_nublado"
+                v-model="day.parcialmenteNublado"
                 type="input"
                 :name="`parcialmente_nublado_${index}`"
-                id="parcialmente_nublado"
                 label="Parcialmente nublado"
-                v-model="day.parcialmenteNublado"
               />
               <InputControl
+                id="temperatura_maxima"
+                v-model="day.temperaturaMaxima"
                 type="input"
                 :name="`temperatura_maxima_${index}`"
-                id="temperatura_maxima"
                 label="Temperatura máxima"
-                v-model="day.temperaturaMaxima"
               />
               <InputControl
+                id="temperatura_minima"
+                v-model="day.temperaturaMinima"
                 type="input"
                 :name="`temperatura_minima_${index}`"
-                id="temperatura_minima"
                 label="Temperatura mínima"
-                v-model="day.temperaturaMinima"
               />
             </FormField>
           </div>
@@ -640,8 +685,60 @@ onMounted(() => {
         <CardBox class="mb-6" has-table>
           <TablaCriterios @tasa-cambiada="tasaDesdeCriterios = $event" />
         </CardBox>
-      </div>
+         <SectionTitleLineWithButton
+          :icon="mdiBallotOutline"
+          title="Límites de Exposición Fisiológica al Calor"
+          main
+        >
+        </SectionTitleLineWithButton>
+        <TablaLimites @update-limites="actualizarLimites" />
+        </div>
       <br />
+
+
+<!-- Nuevo FilePond para "Fotos Areas" -->
+<SectionTitleLineWithButton
+  :icon="mdiBallotOutline"
+  title="Fotos de Áreas"
+  main
+>
+</SectionTitleLineWithButton>
+<CardBox>
+  <FormField label="Subir Fotos de Áreas">
+    <FilePond
+      ref="pondFotosAreas"
+      label-idle="Arrastra y suelta tus fotos aquí o haz clic para buscar"
+      :allow-multiple="true" 
+      :instant-upload="false"
+      :accepted-file-types="['image/png', 'image/jpeg']"
+      @addfile="(err, fileItem) => onFilePondAdd('FotosAreas', err, fileItem)"
+      @removefile="(err, fileItem) => onFilePondRemove('FotosAreas', err, fileItem)"
+    />
+  </FormField>
+</CardBox>
+      <br/>
+
+      <SectionTitleLineWithButton
+  :icon="mdiBallotOutline"
+  title="Gráficos de Humedad"
+  main
+>
+</SectionTitleLineWithButton>
+<CardBox>
+  <FormField label="Subir Gráficos de Humedad">
+    <FilePond
+      ref="pondGraficosHumedad"
+      label-idle="Arrastra y suelta tus gráficos aquí o haz clic para buscar"
+      :allow-multiple="true" 
+      :instant-upload="false"
+      :accepted-file-types="['image/png', 'image/jpeg']"
+      @addfile="(err, fileItem) => onFilePondAdd('GraficosHumedad', err, fileItem)"
+      @removefile="(err, fileItem) => onFilePondRemove('GraficosHumedad', err, fileItem)"
+    />
+  </FormField>
+</CardBox>
+
+      <br/>
 
      <SectionTitleLineWithButton
   :icon="mdiBallotOutline"
@@ -652,16 +749,17 @@ onMounted(() => {
 <CardBox>
    <FormField label="Modificar Titulo del Gráfico">
             <InputControl
-              type="input"
-              name="rectal"
               id="rectal"
               v-model="form.tituloGraficoRectal"
+              type="input"
+              name="rectal"
             />
           </FormField>
   <FormField label="Subir Imagen">
     <FilePond
+      ref="pondRectal"
       label-idle="Arrastra y suelta tu archivo aquí o haz clic para buscar"
-      :allow-multiple="false"
+      :allow-multiple="true"
       :instant-upload="false"
       :accepted-file-types="['image/png', 'image/jpeg']"
       @addfile="(err, fileItem) => onFilePondAdd('Rectal', err, fileItem)"
@@ -682,14 +780,15 @@ onMounted(() => {
 <CardBox>
    <FormField label="Modificar Titulo del Gráfico">
             <InputControl
-              type="input"
-              name="piel"
               id="piel"
               v-model="form.tituloGraficoPiel"
+              type="input"
+              name="piel"
             />
           </FormField>
   <FormField label="Subir Imagen">
     <FilePond
+      ref="pondPiel"
       label-idle="Arrastra y suelta tu archivo aquí o haz clic para buscar"
       :allow-multiple="false"
       :instant-upload="false"
@@ -712,14 +811,15 @@ onMounted(() => {
 <CardBox>
     <FormField label="Modificar Titulo del Gráfico">
               <InputControl
-                type="input"
-                name="agua"
                 id="agua"
                 v-model="form.tituloGraficoAgua"
+                type="input"
+                name="agua"
               />
-            </FormField>
+            </FormField> 
   <FormField label="Subir Imagen">
     <FilePond
+      ref="pondAgua"
       label-idle="Arrastra y suelta tu archivo aquí o haz clic para buscar"
       :allow-multiple="false"
       :instant-upload="false"
@@ -735,6 +835,8 @@ onMounted(() => {
       <CardBox>
         <FormField label="Subir Excel">
           <FilePond
+            ref="pondExcel"
+            v-model="form.archivos"
             label-idle="Arrastra y suelta tu archivo aquí o haz clic para buscar"
             :allow-multiple="false"
             :instant-upload="false"
@@ -742,7 +844,6 @@ onMounted(() => {
               'application/vnd.ms-excel',
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             ]"
-            v-model="form.archivos"
             @addfile="onFileAdded"
             @removefile="onFileRemoved"
           />
@@ -752,7 +853,7 @@ onMounted(() => {
           <ButtonAdd button-text="Generar" @add-click="submitForm" />
         </div>
 
-        <div class="report-container" v-if="pdfUrl">
+        <div v-if="pdfUrl" class="report-container">
           <div id="pdfContainer" class="pdf-container"></div>
         </div>
       </CardBox>

@@ -3,27 +3,23 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { useMainStore } from '@/stores/main.js';
-import { useDarkModeStore } from './stores/darkMode';
 import './assets/css/main.css'; 
 import permissionsStore from '@/stores/stores';
 import PrimeVue from 'primevue/config';
 
 const pinia = createPinia();
-const app = createApp(App).use(router).use(pinia).mount('#app');
-app.use(PrimeVue);
+const app = createApp(App);
+
+app.use(router);
+app.use(pinia);
+app.use(PrimeVue); // ✔️ CORRECTO
+
+app.mount('#app');
 
 const mainStore = useMainStore(pinia);
-mainStore.fetchSampleClients();
-mainStore.fetchSampleHistory();
-
-const darkModeStore = useDarkModeStore(pinia)
-
-if (
-  (!localStorage['darkMode'] && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
-  localStorage['darkMode'] === '1'
-) {
-  darkModeStore.set(true)
- }
+mainStore.fetchSampleClients(); 
+mainStore.fetchSampleHistory();     
+   
 
 
 const defaultDocumentTitle = 'AHM';

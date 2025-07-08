@@ -24,7 +24,7 @@ export const userService = {
       const response = await axios.put(`/Usuario/${id}`, payload);
       return response.data;
     } catch (error) {
-      throw error;
+      throw new Error(error.response.data.message || "Un error ocurrio");
     }
   },
   

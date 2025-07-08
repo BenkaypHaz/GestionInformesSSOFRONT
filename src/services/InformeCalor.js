@@ -93,6 +93,16 @@ async obtenerTasasMetabolicas() {
     console.error('Error al obtener tasas metabólicas:', error);
     throw new Error(error.response?.data?.message || 'Error al obtener tasas metabólicas');
   }
-}
+},
+
+ async guardarValoresProyectados(data) {
+    try {
+      const response = await axios.post('/ValoresProyectados', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error al guardar valores proyectados:', error);
+      throw new Error(error.response?.data?.message || 'Error al guardar los valores proyectados');
+    }
+  }
 
 };

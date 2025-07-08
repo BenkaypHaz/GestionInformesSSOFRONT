@@ -4,10 +4,10 @@
         <SectionTitleLineWithButton :icon="mdiLockOpenCheck" title="Cambiar Contraseña" main />
         <CardBox form>
           <FormField label="Nueva Contraseña">
-            <InputControl type="password" v-model="newPassword" placeholder="Ingrese la nueva contraseña" />
+            <InputControl v-model="newPassword" type="password" placeholder="Ingrese la nueva contraseña" />
           </FormField>
           <FormField label="Confirmar Nueva Contraseña">
-            <InputControl type="password" v-model="confirmPassword" placeholder="Confirme la nueva contraseña" />
+            <InputControl v-model="confirmPassword" type="password" placeholder="Confirme la nueva contraseña" />
           </FormField>
           <FormField>
             <BaseButton color="success" label="Cambiar Contraseña" @click="changePassword" />
@@ -19,7 +19,6 @@
   
   <script setup>
   import { ref,computed } from 'vue';
-  import { useRoute } from 'vue-router';
   import { mdiLockOpenCheck } from '@mdi/js';
   import LayoutAuthenticated from '../components/layouts/LayoutAuthenticated.vue';
   import SectionMain from '../components/layouts/SectionMain.vue';
@@ -35,7 +34,6 @@
 
   const user = computed(() => permissionsStore.getUser());
 
-  const route = useRoute();
   const userId = user.value.idUsuario;
   
   const newPassword = ref('');

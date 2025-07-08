@@ -1,11 +1,10 @@
 <script>
-import TimeSlider from './TimeSlider.vue';
 import { InformeCalorService } from '@/services/InformeCalor';
 
 export default {
   name: "CustomTable",
   components: {
-    TimeSlider,
+
   },
   emits: ['tasa-cambiada'],
   data() {
@@ -33,7 +32,6 @@ async mounted() {
   try {
     const response = await InformeCalorService.obtenerTasasMetabolicas();
     this.tasasMetabolicas = response.data; 
-    console.log("📦 Tasas metabólicas cargadas (fix):", this.tasasMetabolicas);
   } catch (error) {
     console.error("No se pudo cargar tasas metabólicas", error);
   }
@@ -62,17 +60,16 @@ async mounted() {
         </tr>
       </thead>
       <tbody>
-        <tr>
+       <!--   <tr>
           <td>Tiempo de Exposición</td>
           <td>
-            <!-- Aquí se incluye el TimeSlider -->
             <TimeSlider />
           </td>
           <td>
             Variará de acuerdo al tipo de trabajo enlistado en una tabla de referencia.
           </td>
         </tr>      
-            
+            -->
         <tr>
   <td>Tasa Metabólica</td>
   <td>
