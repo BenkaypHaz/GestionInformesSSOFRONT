@@ -1,6 +1,6 @@
 <!-- src/components/informeCalor/FormularioArchivos.vue -->
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import CardBox from '@/components/base/CardBox.vue'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
@@ -19,6 +19,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:archivos'])
 
+// Referencia al componente FilePond
+const pondExcel = ref(null)
+
+// Files locales
+const filesExcel = ref([])
+
 const archivosLocales = computed({
   get: () => props.archivos,
   set: (value) => emit('update:archivos', value)
@@ -35,8 +41,16 @@ const onFileAdded = (error, file) => {
 
 const onFileRemoved = () => {
   archivosLocales.value = []
+  filesExcel.value = []
   console.log('Archivo Excel eliminado')
 }
+
+// Watcher para limpiar FilePond cuando se limpian las props
+watch(() => props.archivos, (newVal) => {
+  if (newVal.length === 0 && pondExcel.value) {
+    filesExcel.value = []
+  }
+})
 </script>
 
 <template>
@@ -50,11 +64,14 @@ const onFileRemoved = () => {
         </label>
         
         <FilePond
+          ref="pondExcel"
+          v-model:files="filesExcel"
           name="archivo_excel"
           label-idle="Arrastra y suelta tu archivo Excel aquí o <span class='filepond--label-action'>Examinar</span>"
           accepted-file-types="application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           :server="null"
           :allow-multiple="false"
+          :allow-paste="false"
           credits="false"
           @addfile="onFileAdded"
           @removefile="onFileRemoved"
@@ -65,7 +82,7 @@ const onFileRemoved = () => {
         </p>
       </div>
 
-      <div v-if="archivosLocales.length > 0" class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+      <div v-if="archivosLocales.length > 0" class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
         <p class="text-sm text-green-700 dark:text-green-300">
           <strong>Archivo cargado:</strong> {{ archivosLocales[0].name }}
         </p>

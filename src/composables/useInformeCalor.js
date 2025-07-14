@@ -26,7 +26,12 @@ export function useInformeCalor() {
     tituloGraficoAgua: 'Proyección de pérdida de agua',
     tituloGraficoPiel: 'Proyección de temperatura de piel',
     tituloGraficoRectal: 'Proyección de temperatura rectal',
-    idInforme: null
+    idInforme: null,
+    panelDatos: {
+      cantidadAreas: 1,
+      usarMismaDatos: false,
+      datosPorArea: []
+    }
   })
 
   // Referencias reactivas
@@ -155,6 +160,24 @@ export function useInformeCalor() {
     if (!form.idTecnico) errores.push('Técnico no seleccionado.')
     if (!form.idRopaUtilizada) errores.push('Ropa utilizada no seleccionada.')
 
+    // Validación de panel de datos
+    if (form.panelDatos.cantidadAreas <= 0) {
+      errores.push('Debe especificar al menos un área de trabajo.')
+    }
+    
+    const datosPorArea = form.panelDatos.datosPorArea
+    if (!datosPorArea || datosPorArea.length === 0) {
+      errores.push('Debe completar los datos ambientales de las áreas.')
+    } else {
+      const areasIncompletas = datosPorArea.filter(area => 
+        !area.wbgt || !area.bulboSeco || !area.bulboHumedo || 
+        !area.cuerpoNegro || !area.indiceTermico || !area.humedadPromedio
+      )
+      if (areasIncompletas.length > 0) {
+        errores.push('Todos los campos de datos ambientales son requeridos.')
+      }
+    }
+
     // Validaciones segunda sección
     if (!form.archivos || form.archivos.length === 0) {
       errores.push('No se ha subido ningún archivo Excel.')
@@ -202,6 +225,7 @@ export function useInformeCalor() {
 
   // Preparar y enviar el payload
   const prepararPayload = async () => {
+    // Crear el payload estructurado correctamente
     const payload = {
       IdEmpresa: form.idEmpresa,
       EsAfiliada: !listaNoAfiliadas.value,
@@ -221,7 +245,7 @@ export function useInformeCalor() {
         TemperaturaMaxima: dia.temperaturaMaxima || '',
         TemperaturaMinima: dia.temperaturaMinima || ''
       })),
-      TitulosGraficos: [
+      titulosGraficos: [
         {
           id: 0,
           idInforme: 0,
@@ -243,7 +267,7 @@ export function useInformeCalor() {
       ]
     }
 
-    // Crear informe
+    // Llamada al endpoint de creación del informe
     const response = await InformeCalorService.crearInforme(payload)
     const informeId = response.data
 
@@ -257,11 +281,29 @@ export function useInformeCalor() {
       PerdidaTotalAgua: limitesProyectados.value.PerdidaTotalAgua
     })
 
-    // Subir archivo Excel
+    // Guardar panel de datos (nuevo)
+    const panelDatosPayload = {
+      idInforme: informeId,
+      cantidadAreas: form.panelDatos.cantidadAreas,
+      usarMismaDatosParaTodasAreas: form.panelDatos.usarMismaDatos,
+      datosPorArea: form.panelDatos.datosPorArea.map(area => ({
+        idArea: area.idArea,
+        WBGT: parseFloat(area.wbgt) || 0,
+        bulboSeco: parseFloat(area.bulboSeco) || 0,
+        bulboHumedo: parseFloat(area.bulboHumedo) || 0,
+        cuerpoNegro: parseFloat(area.cuerpoNegro) || 0,
+        indiceTermico: parseFloat(area.indiceTermico) || 0,
+        humedadPromedio: parseFloat(area.humedadPromedio) || 0,
+        generarGraficoCampana: area.generarGraficoCampana
+      }))
+    }
+    await InformeCalorService.guardarPanelDatos(panelDatosPayload)
+
+    // Subir el archivo Excel
     const formData = new FormData()
     formData.append('file', form.archivos[0])
     formData.append('informeId', informeId)
-    await InformeCalorService.subirArchivoExcel(formData)
+    const response2 = await InformeCalorService.subirArchivoExcel(formData)
 
     // Subir imágenes de gráficos individuales
     const imagenes = [
@@ -270,6 +312,7 @@ export function useInformeCalor() {
       { archivo: form.imagenAgua[0], tipo: 'Agua' }
     ]
 
+    // Subir las imágenes rectal, piel y agua
     for (const img of imagenes) {
       if (img.archivo) {
         const imagenData = new FormData()
@@ -280,7 +323,7 @@ export function useInformeCalor() {
       }
     }
 
-    // Subir fotos de áreas (múltiples)
+    // Para las fotos de áreas, que pueden ser múltiples
     if (form.fotosAreas.length > 0) {
       for (const archivo of form.fotosAreas) {
         const imagenData = new FormData()
@@ -302,7 +345,7 @@ export function useInformeCalor() {
       }
     }
 
-    // Descargar PDF
+    // Descargar el informe en PDF
     const pdfBlob = await InformeCalorService.descargarInformePDF(informeId)
     const url = window.URL.createObjectURL(pdfBlob)
     const a = document.createElement('a')
@@ -311,37 +354,59 @@ export function useInformeCalor() {
     a.click()
     window.URL.revokeObjectURL(url)
 
-    return { response, informeId }
+    return { response: response2, informeId }
   }
 
   // Limpiar formulario
   const limpiarFormulario = () => {
-    form.idEmpresa = 1
-    form.archivos = []
-    form.equiposSeleccionados = []
-    form.pesoestimado = 0.0
-    form.idRopaUtilizada = 1
-    form.idTecnico = null
-    form.diasEvaluacion = []
-    form.imagenRectal = []
-    form.imagenPiel = []
-    form.imagenAgua = []
-    form.fotosAreas = []
-    form.graficosHumedad = []
-    form.tituloGraficoAgua = 'Proyección de pérdida de agua'
-    form.tituloGraficoPiel = 'Proyección de temperatura de piel'
-    form.tituloGraficoRectal = 'Proyección de temperatura rectal'
-    fechainicio.value = null
-    fechafinal.value = null
-    equipoSeleccionado.value = null
-    tasaDesdeCriterios.value = 0
-    limitesProyectados.value = {
-      TemperaturaRectalFinal: 0,
-      ExcesoTempCorporal38C: 'No excedido',
-      ExcesoDeshidratacion2Porciento: 'No excedido',
-      TasaMediaSudoracion: 0,
-      PerdidaTotalAgua: 0
-    }
+    // Resetear valores básicos
+    // form.idEmpresa = empresasAfiliadasOpciones.value[0]?.id || 1
+    // form.archivos = []
+    // form.equiposSeleccionados = []
+    // form.pesoestimado = 0.0
+    // form.idRopaUtilizada = ropaOpciones.value[0]?.id || 1
+    // form.idTecnico = usuariosOpciones.value[0]?.id || null
+    // form.diasEvaluacion = []
+    
+    // // Limpiar arrays de imágenes
+    // form.imagenRectal = []
+    // form.imagenPiel = []
+    // form.imagenAgua = []
+    // form.fotosAreas = []
+    // form.graficosHumedad = []
+    
+    // // Resetear títulos
+    // form.tituloGraficoAgua = 'Proyección de pérdida de agua'
+    // form.tituloGraficoPiel = 'Proyección de temperatura de piel'
+    // form.tituloGraficoRectal = 'Proyección de temperatura rectal'
+    
+    // // Limpiar fechas
+    // fechainicio.value = null
+    // fechafinal.value = null
+    
+    // // Resetear selecciones
+    // equipoSeleccionado.value = null
+    // tasaDesdeCriterios.value = 0
+    // listaNoAfiliadas.value = false
+    
+    // // Resetear límites proyectados
+    // limitesProyectados.value = {
+    //   TemperaturaRectalFinal: 0,
+    //   ExcesoTempCorporal38C: 'No excedido',
+    //   ExcesoDeshidratacion2Porciento: 'No excedido',
+    //   TasaMediaSudoracion: 0,
+    //   PerdidaTotalAgua: 0
+    // }
+    
+    // // Resetear panel de datos
+    // form.panelDatos = {
+    //   cantidadAreas: 1,
+    //   usarMismaDatos: false,
+    //   datosPorArea: []
+    // }
+
+    //   window.location.reload()
+
   }
 
   // Watchers

@@ -1,6 +1,6 @@
 <!-- src/components/informeCalor/FormularioImagenesAdicionales.vue -->
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import CardBox from '@/components/base/CardBox.vue'
 import vueFilePond from 'vue-filepond'
 import 'filepond/dist/filepond.min.css'
@@ -22,6 +22,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:fotosAreas', 'update:graficosHumedad'])
+
+// Referencias a los componentes FilePond
+const pondFotosAreas = ref(null)
+const pondGraficosHumedad = ref(null)
+
+// Files locales para cada FilePond
+const filesFotosAreas = ref([])
+const filesGraficosHumedad = ref([])
 
 // Computed properties para manejar los arrays
 const fotosAreasLocal = computed({
@@ -45,7 +53,7 @@ const onFotosAreasAdd = (error, fileItem) => {
 
 const onFotosAreasRemove = (error, fileItem) => {
   if (!error && fileItem?.file) {
-    const index = fotosAreasLocal.value.findIndex(f => f === fileItem.file)
+    const index = fotosAreasLocal.value.findIndex(f => f.name === fileItem.file.name)
     if (index > -1) {
       const nuevasFotos = [...fotosAreasLocal.value]
       nuevasFotos.splice(index, 1)
@@ -66,7 +74,7 @@ const onGraficosHumedadAdd = (error, fileItem) => {
 
 const onGraficosHumedadRemove = (error, fileItem) => {
   if (!error && fileItem?.file) {
-    const index = graficosHumedadLocal.value.findIndex(f => f === fileItem.file)
+    const index = graficosHumedadLocal.value.findIndex(f => f.name === fileItem.file.name)
     if (index > -1) {
       const nuevosGraficos = [...graficosHumedadLocal.value]
       nuevosGraficos.splice(index, 1)
@@ -75,6 +83,19 @@ const onGraficosHumedadRemove = (error, fileItem) => {
     }
   }
 }
+
+// Watchers para limpiar FilePond cuando se limpian las props
+watch(() => props.fotosAreas, (newVal) => {
+  if (newVal.length === 0 && pondFotosAreas.value) {
+    filesFotosAreas.value = []
+  }
+})
+
+watch(() => props.graficosHumedad, (newVal) => {
+  if (newVal.length === 0 && pondGraficosHumedad.value) {
+    filesGraficosHumedad.value = []
+  }
+})
 </script>
 
 <template>
@@ -89,11 +110,14 @@ const onGraficosHumedadRemove = (error, fileItem) => {
         </label>
         
         <FilePond
+          ref="pondFotosAreas"
+          v-model:files="filesFotosAreas"
           name="fotos_areas"
           label-idle="Arrastra y suelta tus fotos aquí o <span class='filepond--label-action'>Examinar</span>"
           accepted-file-types="image/png,image/jpeg,image/jpg"
           :server="null"
           :allow-multiple="true"
+          :allow-paste="false"
           credits="false"
           @addfile="onFotosAreasAdd"
           @removefile="onFotosAreasRemove"
@@ -121,11 +145,14 @@ const onGraficosHumedadRemove = (error, fileItem) => {
         </label>
         
         <FilePond
+          ref="pondGraficosHumedad"
+          v-model:files="filesGraficosHumedad"
           name="graficos_humedad"
           label-idle="Arrastra y suelta tus gráficos aquí o <span class='filepond--label-action'>Examinar</span>"
           accepted-file-types="image/png,image/jpeg,image/jpg"
           :server="null"
           :allow-multiple="true"
+          :allow-paste="false"
           credits="false"
           @addfile="onGraficosHumedadAdd"
           @removefile="onGraficosHumedadRemove"

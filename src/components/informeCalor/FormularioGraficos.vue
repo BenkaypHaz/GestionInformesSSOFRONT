@@ -1,6 +1,6 @@
 <!-- src/components/informeCalor/FormularioGraficos.vue -->
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import CardBox from '@/components/base/CardBox.vue'
 import FormField from '@/components/forms/FormField.vue'
 import InputControl from '@/components/forms/InputControl.vue'
@@ -30,6 +30,16 @@ const emit = defineEmits([
   'update:tituloGraficoAgua'
 ])
 
+// Referencias a los componentes FilePond
+const pondRectal = ref(null)
+const pondPiel = ref(null)
+const pondAgua = ref(null)
+
+// Files locales para cada FilePond
+const filesRectal = ref([])
+const filesPiel = ref([])
+const filesAgua = ref([])
+
 // Computed properties para v-model
 const tituloRectal = computed({
   get: () => props.tituloGraficoRectal,
@@ -46,7 +56,7 @@ const tituloAgua = computed({
   set: (value) => emit('update:tituloGraficoAgua', value)
 })
 
-// Handlers para las imágenes
+// Handlers únicos para cada imagen
 const handleImagenRectal = (error, file) => {
   if (!error && file?.file) {
     emit('update:imagenRectal', [file.file])
@@ -65,9 +75,39 @@ const handleImagenAgua = (error, file) => {
   }
 }
 
-const removeImagenRectal = () => emit('update:imagenRectal', [])
-const removeImagenPiel = () => emit('update:imagenPiel', [])
-const removeImagenAgua = () => emit('update:imagenAgua', [])
+const removeImagenRectal = () => {
+  emit('update:imagenRectal', [])
+  filesRectal.value = []
+}
+
+const removeImagenPiel = () => {
+  emit('update:imagenPiel', [])
+  filesPiel.value = []
+}
+
+const removeImagenAgua = () => {
+  emit('update:imagenAgua', [])
+  filesAgua.value = []
+}
+
+// Watchers para limpiar FilePond cuando se limpian las props
+watch(() => props.imagenRectal, (newVal) => {
+  if (newVal.length === 0 && pondRectal.value) {
+    filesRectal.value = []
+  }
+})
+
+watch(() => props.imagenPiel, (newVal) => {
+  if (newVal.length === 0 && pondPiel.value) {
+    filesPiel.value = []
+  }
+})
+
+watch(() => props.imagenAgua, (newVal) => {
+  if (newVal.length === 0 && pondAgua.value) {
+    filesAgua.value = []
+  }
+})
 </script>
 
 <template>
@@ -94,11 +134,14 @@ const removeImagenAgua = () => emit('update:imagenAgua', [])
         <div class="mt-4">
           <label class="block text-sm font-medium mb-2">Imagen del gráfico</label>
           <FilePond
+            ref="pondRectal"
+            v-model:files="filesRectal"
             name="imagen_rectal"
             label-idle="Arrastra la imagen aquí o <span class='filepond--label-action'>Examinar</span>"
             accepted-file-types="image/png,image/jpeg,image/jpg"
             :server="null"
             :allow-multiple="false"
+            :allow-paste="false"
             credits="false"
             @addfile="handleImagenRectal"
             @removefile="removeImagenRectal"
@@ -125,11 +168,14 @@ const removeImagenAgua = () => emit('update:imagenAgua', [])
         <div class="mt-4">
           <label class="block text-sm font-medium mb-2">Imagen del gráfico</label>
           <FilePond
+            ref="pondPiel"
+            v-model:files="filesPiel"
             name="imagen_piel"
             label-idle="Arrastra la imagen aquí o <span class='filepond--label-action'>Examinar</span>"
             accepted-file-types="image/png,image/jpeg,image/jpg"
             :server="null"
             :allow-multiple="false"
+            :allow-paste="false"
             credits="false"
             @addfile="handleImagenPiel"
             @removefile="removeImagenPiel"
@@ -156,11 +202,14 @@ const removeImagenAgua = () => emit('update:imagenAgua', [])
         <div class="mt-4">
           <label class="block text-sm font-medium mb-2">Imagen del gráfico</label>
           <FilePond
+            ref="pondAgua"
+            v-model:files="filesAgua"
             name="imagen_agua"
             label-idle="Arrastra la imagen aquí o <span class='filepond--label-action'>Examinar</span>"
             accepted-file-types="image/png,image/jpeg,image/jpg"
             :server="null"
             :allow-multiple="false"
+            :allow-paste="false"
             credits="false"
             @addfile="handleImagenAgua"
             @removefile="removeImagenAgua"

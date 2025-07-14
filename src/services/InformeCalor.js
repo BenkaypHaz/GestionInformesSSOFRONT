@@ -1,7 +1,25 @@
 import axios from '@/axiosInstance';
 
 export const InformeCalorService = {
+async guardarPanelDatos(data) {
+    try {
+      const response = await axios.post('/PanelDatos', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error al guardar panel de datos:', error);
+      throw new Error(error.response?.data?.message || 'Error al guardar los datos del panel');
+    }
+  },
 
+  async obtenerPanelDatos(informeId) {
+    try {
+      const response = await axios.get(`/PanelDatos/${informeId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener panel de datos:', error);
+      throw new Error(error.response?.data?.message || 'Error al obtener los datos del panel');
+    }
+  },
   async crearInforme(data) {
     try {
       const response = await axios.post('/InformesCalor', data);
