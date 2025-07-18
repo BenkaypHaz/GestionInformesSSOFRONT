@@ -36,7 +36,6 @@ const {
   fechafinal,
   listaNoAfiliadas,
   equipoSeleccionado,
-  tasaDesdeCriterios,
   limitesProyectados,
   empresasOpciones,
   empresasAfiliadasOpciones,
@@ -230,9 +229,8 @@ const testing = async () => {
 
       <!-- Segunda Sección: Criterios y Archivos -->
       <div v-show="mostrarSegundaSeccion" class="space-y-6">
-        <FormularioCriterios
-          @tasa-cambiada="(tasa) => tasaDesdeCriterios = tasa"
-        />
+         <FormularioCriterios v-model="form.criterios" />
+
 
         <FormularioLimites
           v-model:limites-proyectados="limitesProyectados"

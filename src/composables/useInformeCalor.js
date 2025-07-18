@@ -27,10 +27,14 @@ export function useInformeCalor() {
     tituloGraficoPiel: 'Proyección de temperatura de piel',
     tituloGraficoRectal: 'Proyección de temperatura rectal',
     idInforme: null,
+     criterios: {
+    aclimatacion: false,
+    hidratacion: false
+  },
     panelDatos: {
       cantidadAreas: 1,
-      usarMismaDatos: false,
-      datosPorArea: []
+    usarMismaDatos: true,
+    datosPorArea: []
     }
   })
 
@@ -225,79 +229,86 @@ export function useInformeCalor() {
 
   // Preparar y enviar el payload
   const prepararPayload = async () => {
-    // Crear el payload estructurado correctamente
-    const payload = {
-      IdEmpresa: form.idEmpresa,
-      EsAfiliada: !listaNoAfiliadas.value,
-      FechaInicia: fechainicio.value ? new Date(fechainicio.value).toISOString() : null,
-      FechaFinaliza: fechafinal.value ? new Date(fechafinal.value).toISOString() : null,
-      IdTecnico: form.idTecnico,
-      Tasa_Estimada: tasaDesdeCriterios.value,
-      Peso_Promedio: form.pesoestimado,
-      IdRopaUtilizada: form.idRopaUtilizada,
-      EquiposUtilizados: form.equiposSeleccionados.map(equipo => ({
-        IdEquipo: equipo.id
-      })),
-      DiasEvaluacion: form.diasEvaluacion.map(dia => ({
-        Dia: dia.dia,
-        HumedadRelativa: dia.humedadRelativa || '',
-        ParcialmenteNublado: dia.parcialmenteNublado || '',
-        TemperaturaMaxima: dia.temperaturaMaxima || '',
-        TemperaturaMinima: dia.temperaturaMinima || ''
-      })),
-      titulosGraficos: [
-        {
-          id: 0,
-          idInforme: 0,
-          titulo: form.tituloGraficoRectal,
-          tipo_grafico: 1 // Gráfico Rectal
-        },
-        {
-          id: 0,
-          idInforme: 0,
-          titulo: form.tituloGraficoPiel,
-          tipo_grafico: 2 // Gráfico Temperatura Piel
-        },
-        {
-          id: 0,
-          idInforme: 0,
-          titulo: form.tituloGraficoAgua,
-          tipo_grafico: 3 // Gráfico Pérdida de Agua
-        }
-      ]
-    }
+  // Crear el payload estructurado correctamente
+  const payload = {
+    IdEmpresa: form.idEmpresa,
+    EsAfiliada: !listaNoAfiliadas.value,
+    FechaInicia: fechainicio.value ? new Date(fechainicio.value).toISOString() : null,
+    FechaFinaliza: fechafinal.value ? new Date(fechafinal.value).toISOString() : null,
+    IdTecnico: form.idTecnico,
+    // REMOVIDO: Tasa_Estimada: tasaDesdeCriterios.value,
+    Peso_Promedio: form.pesoestimado,
+    IdRopaUtilizada: form.idRopaUtilizada,
+     Aclimatacion: form.criterios.aclimatacion, // NUEVO
+    Hidratacion: form.criterios.hidratacion, // NUEVO
+    EquiposUtilizados: form.equiposSeleccionados.map(equipo => ({
+      IdEquipo: equipo.id
+    })),
+    DiasEvaluacion: form.diasEvaluacion.map(dia => ({
+      Dia: dia.dia,
+      HumedadRelativa: dia.humedadRelativa || '',
+      ParcialmenteNublado: dia.parcialmenteNublado || '',
+      TemperaturaMaxima: dia.temperaturaMaxima || '',
+      TemperaturaMinima: dia.temperaturaMinima || ''
+    })),
+    titulosGraficos: [
+      {
+        id: 0,
+        idInforme: 0,
+        titulo: form.tituloGraficoRectal,
+        tipo_grafico: 1 // Gráfico Rectal
+      },
+      {
+        id: 0,
+        idInforme: 0,
+        titulo: form.tituloGraficoPiel,
+        tipo_grafico: 2 // Gráfico Temperatura Piel
+      },
+      {
+        id: 0,
+        idInforme: 0,
+        titulo: form.tituloGraficoAgua,
+        tipo_grafico: 3 // Gráfico Pérdida de Agua
+      }
+    ]
+  }
 
-    // Llamada al endpoint de creación del informe
-    const response = await InformeCalorService.crearInforme(payload)
-    const informeId = response.data
+  // Llamada al endpoint de creación del informe
+  const response = await InformeCalorService.crearInforme(payload)
+  const informeId = response.data
 
-    // Guardar los valores proyectados fisiológicos
-    await InformeCalorService.guardarValoresProyectados({
-      idInforme: informeId,
-      TemperaturaRectalFinal: limitesProyectados.value.TemperaturaRectalFinal,
-      ExcesoTempCorporal38C: limitesProyectados.value.ExcesoTempCorporal38C === 'Excedido',
-      ExcesoDeshidratacion2Porciento: limitesProyectados.value.ExcesoDeshidratacion2Porciento === 'Excedido',
-      TasaMediaSudoracion: limitesProyectados.value.TasaMediaSudoracion,
-      PerdidaTotalAgua: limitesProyectados.value.PerdidaTotalAgua
-    })
+  // Guardar los valores proyectados fisiológicos
+  await InformeCalorService.guardarValoresProyectados({
+    idInforme: informeId,
+    TemperaturaRectalFinal: limitesProyectados.value.TemperaturaRectalFinal,
+    ExcesoTempCorporal38C: limitesProyectados.value.ExcesoTempCorporal38C === 'Excedido',
+    ExcesoDeshidratacion2Porciento: limitesProyectados.value.ExcesoDeshidratacion2Porciento === 'Excedido',
+    TasaMediaSudoracion: limitesProyectados.value.TasaMediaSudoracion,
+    PerdidaTotalAgua: limitesProyectados.value.PerdidaTotalAgua
+  })
 
-    // Guardar panel de datos (nuevo)
-    const panelDatosPayload = {
-      idInforme: informeId,
-      cantidadAreas: form.panelDatos.cantidadAreas,
-      usarMismaDatosParaTodasAreas: form.panelDatos.usarMismaDatos,
-      datosPorArea: form.panelDatos.datosPorArea.map(area => ({
-        idArea: area.idArea,
-        WBGT: parseFloat(area.wbgt) || 0,
-        bulboSeco: parseFloat(area.bulboSeco) || 0,
-        bulboHumedo: parseFloat(area.bulboHumedo) || 0,
-        cuerpoNegro: parseFloat(area.cuerpoNegro) || 0,
-        indiceTermico: parseFloat(area.indiceTermico) || 0,
-        humedadPromedio: parseFloat(area.humedadPromedio) || 0,
-        generarGraficoCampana: area.generarGraficoCampana
-      }))
-    }
-    await InformeCalorService.guardarPanelDatos(panelDatosPayload)
+  // Guardar panel de datos (MODIFICADO para incluir tasaEstimada)
+  const panelDatosPayload = {
+    idInforme: informeId,
+    cantidadAreas: parseInt(form.panelDatos.cantidadAreas),
+    usarMismaDatosParaTodasAreas: form.panelDatos.usarMismaDatos,
+    datosPorArea: form.panelDatos.datosPorArea.map(area => ({
+      idArea: area.idArea,
+      WBGT: parseFloat(area.wbgt) || 0,
+      bulboSeco: parseFloat(area.bulboSeco) || 0,
+      bulboHumedo: parseFloat(area.bulboHumedo) || 0,
+      cuerpoNegro: parseFloat(area.cuerpoNegro) || 0,
+      indiceTermico: parseFloat(area.indiceTermico) || 0,
+      humedadPromedio: parseFloat(area.humedadPromedio) || 0,
+      generarGraficoCampana: area.generarGraficoCampana,
+      tasaEstimada: parseFloat(area.tasaEstimada) || 0 ,// NUEVO CAMPO
+      idRopaUtilizada: area.idRopaUtilizada, // MODIFICADO - Enviar ID en lugar de valor decimal
+      postura: area.postura || 'De pie', // NUEVO
+      ambiente: area.ambiente || 'Interior' // NUEVO
+    }))
+  }
+  console.log('Panel Datos Payload:', panelDatosPayload)
+  await InformeCalorService.guardarPanelDatos(panelDatosPayload)
 
     // Subir el archivo Excel
     const formData = new FormData()
